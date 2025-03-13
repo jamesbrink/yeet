@@ -37,11 +37,12 @@ $diff
 The message must:
 1. Follow the Conventional Commits format with a title AND body
 2. Use one of these types: feat, fix, refactor, perf
-3. Title should be under 50 characters total
-4. Include an emoji at the beginning of the title
-5. The body MUST include a bullet-point list of what actually changed, but written in the most sarcastic, exasperated tone possible
-6. Body should be separated from title by a blank line
-7. Body should sound like you're explaining the changes to a 5-year-old or incompetent colleague
+3. Title should be under 50 characters total and should be specific to what changed
+4. Include an emoji at the beginning of the title that matches the type of change
+5. The body MUST include a bullet-point list of what actually changed, with each bullet starting with a dash (-)
+6. Each bullet point must explain an actual specific change from the diff, not generic statements
+7. Body should be separated from title by a blank line
+8. Body should be written in sarcastic, condescending tone like you're explaining to someone who will never understand
 
 Return as a JSON object with these fields:
 - 'type': the commit type (feat, fix, etc.)
@@ -89,9 +90,13 @@ Return as a JSON object with these fields:
       
       # Format conventional commit with body
       if [[ -n "$body" ]]; then
+        # Remove any leading spaces from the title
+        title=$(echo "$title" | sed 's/^[[:space:]]*//')
+        # Ensure we have correct formatting, avoiding double spaces between type and title
         printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
       else
         # Fallback if no body
+        title=$(echo "$title" | sed 's/^[[:space:]]*//')
         echo "$type: $title" | cut -c 1-70
       fi
       return
