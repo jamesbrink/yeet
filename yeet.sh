@@ -44,7 +44,8 @@ $diff
 
 CRITICAL INSTRUCTIONS:
 1. FIRST, carefully analyze what files were changed and what specific code was added/removed
-2. Based on the ACTUAL changes shown above, generate a commit message with:
+2. EXTRACT a list of important file names that were modified in the diff
+3. Based on the ACTUAL changes shown above, generate a commit message with:
    - Type: One of: feat, fix, refactor, or perf
    - Title: Under 50 chars, starting with emoji, describing the main change
    - Body: EXACTLY 3 bullet points referring to SPECIFIC file changes
@@ -55,8 +56,9 @@ FORMAT REQUIREMENTS:
 3. Title MUST be under 50 chars and reference SPECIFIC code that changed
 4. Title MUST start with emoji matching the change (✨=feature, 🐛=fix, etc)
 5. The body MUST be EXACTLY 3 bullet points (-) referencing SPECIFIC files/code
-6. Each bullet point MUST be sarcastic but technically correct
-7. DO NOT use placeholder text - reference ACTUAL files and changes!
+6. Each bullet point MUST mention specific file names (like main.js, db.py, etc)
+7. Each bullet point MUST be sarcastic but technically correct
+8. DO NOT use placeholder text - reference ACTUAL files and changes!
 
 Here is an example of the JSON format to use:
 {

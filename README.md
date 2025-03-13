@@ -74,6 +74,20 @@ Dry run mode:
 3. Displays the commit message that would be used
 4. Does NOT stage or commit any changes
 
+### Debug mode
+
+Enable debug output by setting the DEBUG environment variable:
+
+```bash
+DEBUG=1 ./yeet.sh
+```
+
+Debug mode will print detailed information about:
+- API requests being sent to Ollama
+- Raw API responses 
+- Parsed components of the commit message
+- Git diff information
+
 ## Customization
 
 You can modify the script to change:
@@ -81,6 +95,7 @@ You can modify the script to change:
 - The Ollama model used (change `MODEL_NAME="qwen:0.5b"` to your preferred model)
 - The API endpoint (if you're running Ollama somewhere other than localhost)
 - The commit message style by editing the prompt
+- The timeout for API calls (default is 10 seconds)
 
 ## Examples
 
@@ -93,9 +108,9 @@ $ ./yeet.sh
 
 feat: 🔧 Add user authentication to backend API
 
-- Added login/logout endpoints that even a toddler could understand
-- Created JWT token generation that might actually be secure this time
-- Implemented password hashing because apparently "password123" isn't secure
+- Added login/logout endpoints in auth.js that even a toddler could understand
+- Created JWT token generation in tokens.js that might actually be secure this time
+- Implemented password hashing in users.py because apparently "password123" isn't secure
 
 🚀 Yeeted your changes to the repo!
 🌐 Remote detected! Pushing changes...
