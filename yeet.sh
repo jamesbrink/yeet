@@ -258,13 +258,25 @@ do_commit() {
     exit 1
   fi
   
+  # DEBUGGING
+  echo "DEBUG: Original json_msg:" > /tmp/yeet_debug
+  echo "$json_msg" >> /tmp/yeet_debug
+  
   # Clean the JSON message to extract just the valid JSON part
   local clean_json=$(echo "$json_msg" | grep -o '{.*}' | tail -1)
+  
+  echo "DEBUG: Extracted clean_json:" >> /tmp/yeet_debug
+  echo "$clean_json" >> /tmp/yeet_debug
   
   # Extract the parts from our JSON with fallbacks for missing fields
   local type=$(echo "$clean_json" | jq -r '.type // "feat"')
   local subject=$(echo "$clean_json" | jq -r '.subject // "✨ Changes"')
   local body=$(echo "$clean_json" | jq -r '.body // ""')
+  
+  echo "DEBUG: Extracted fields:" >> /tmp/yeet_debug
+  echo "type: '$type'" >> /tmp/yeet_debug
+  echo "subject: '$subject'" >> /tmp/yeet_debug
+  echo "body: '$body'" >> /tmp/yeet_debug
   
   # Validate that we have at least a subject
   if [[ -z "$subject" || "$subject" == "null" ]]; then
@@ -281,7 +293,15 @@ do_commit() {
   body=$(echo "$body" | sed 's/\\n/\n/g')
   
   # Build the final message in a format git expects (first line, blank line, then body)
-  echo "$type: $subject" > /tmp/yeet_commit_msg
+  # Force the use of proper conventional commit format
+  if [[ -n "$type" && "$type" != "null" ]]; then
+    echo "${type}: ${subject}" > /tmp/yeet_commit_msg
+    echo "DEBUG: Final commit message first line: '${type}: ${subject}'" >> /tmp/yeet_debug
+  else
+    echo "feat: ${subject}" > /tmp/yeet_commit_msg
+    echo "DEBUG: Using default 'feat' type with subject: '${subject}'" >> /tmp/yeet_debug
+  fi
+  
   if [[ -n "$body" ]]; then
     echo "" >> /tmp/yeet_commit_msg
     echo "$body" >> /tmp/yeet_commit_msg
