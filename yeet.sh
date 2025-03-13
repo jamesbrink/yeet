@@ -194,14 +194,6 @@ VERY IMPORTANT:
 - DO NOT just reference "the changes" vaguely - be specific about what was actually modified
 - Mention SPECIFIC file names, function names, or code patterns that were changed
 
-Examples of good, technically accurate + roasting commit messages:
-- "fix: 🐛 Fix broken pagination in UserList.js"
-  "Your brilliant idea to increment by 0 explains why users see the same page over and over. Maybe try basic math next time?"
-- "refactor: ♻️ Replace nested if-else hell in auth.js"
-  "Congratulations on discovering functions exist! Your previous 15-level deep if-else maze was a masterclass in how to confuse future developers."
-- "feat: ✨ Add error handling to API calls in network.js"
-  "Finally decided to handle errors after users complained? Revolutionary concept - catching exceptions instead of letting the app explode!"
-
 IMPORTANT: Analyze what ACTUALLY changed in the diff (files/content) and refer ONLY to those specific changes in your message. Accuracy is the highest priority.
 EOF
 
@@ -714,9 +706,31 @@ if echo "$json_message" | jq -e '.type' >/dev/null 2>&1 &&
   # Check if the subject incorrectly includes the type prefix already
   if echo "$subject" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert):'; then
     echo "⚠️ Subject includes type prefix. Extracting just the subject..." >&2
+    
+    # Get the type prefix from the subject
+    subject_type=$(echo "$subject" | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert):.*/\1/')
+    
     # Extract just the part after the type: prefix
     clean_subject=$(echo "$subject" | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): *//')
+    
+    # If the type in the subject doesn't match our extracted type, use the type from the subject
+    if [[ -n "$subject_type" && "$subject_type" != "$type" ]]; then
+      echo "⚠️ Type mismatch: '$type' vs '$subject_type'. Using '$subject_type'..." >&2
+      type="$subject_type"
+    fi
+    
     subject="$clean_subject"
+  fi
+  
+  # Handle cases where the model returned a full commit message as the subject
+  if [[ "$subject" == *" - "* && $(echo "$subject" | wc -w) -gt 7 ]]; then
+    echo "⚠️ Subject appears to be a full commit message. Trimming..." >&2
+    # Keep only the part before " - " or just the first 7 words
+    if [[ "$subject" == *" - "* ]]; then
+      subject=$(echo "$subject" | cut -d'-' -f1 | xargs)
+    else
+      subject=$(echo "$subject" | awk '{print $1" "$2" "$3" "$4" "$5" "$6" "$7}')
+    fi
   fi
 fi
 
