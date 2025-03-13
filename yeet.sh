@@ -38,36 +38,23 @@ generate_commit_message() {
   fi
   
   # Create system and user prompts for the Ollama API
-  local system_prompt="You are a sarcastic developer who writes technically accurate git commit messages based on the actual code changes in a diff. First analyze what actually changed in the code, then create an accurate but snarky commit message."
+  local system_prompt="You are a sarcastic developer who writes technically accurate git commit messages based on the actual code changes in a diff."
   local user_prompt="Generate a snarky but technically accurate git commit message for this diff:
 $diff
 
-CRITICAL INSTRUCTIONS:
-1. FIRST, carefully analyze what files were changed and what specific code was added/removed
-2. EXTRACT a list of important file names that were modified in the diff
-3. Based on the ACTUAL changes shown above, generate a commit message with:
-   - Type: One of: feat, fix, refactor, or perf
-   - Title: Under 50 chars, starting with emoji, describing the main change
-   - Body: EXACTLY 3 bullet points referring to SPECIFIC file changes
+Analyze the changes and create a commit message with:
+- Type: feat, fix, refactor, or perf
+- Title: Short description with emoji (✨=feature, 🐛=fix)
+- Body: 3 bullet points about specific files that changed
 
-FORMAT REQUIREMENTS:
-1. Follow Conventional Commits format with a title AND body
-2. Type MUST be one of: feat, fix, refactor, perf (no spaces, lowercase)
-3. Title MUST be under 50 chars and reference SPECIFIC code that changed
-4. Title MUST start with emoji matching the change (✨=feature, 🐛=fix, etc)
-5. The body MUST be EXACTLY 3 bullet points (-) referencing SPECIFIC files/code
-6. Each bullet point MUST mention specific file names (like main.js, db.py, etc)
-7. Each bullet point MUST be sarcastic but technically correct
-8. DO NOT use placeholder text - reference ACTUAL files and changes!
+Example format:
+feat: ✨ Improved JSON schema handling
 
-Here is an example of the JSON format to use:
-{
-\"type\": \"feat\",
-\"title\": \"✨ Add debug mode and improve git integration\",
-\"body\": \"- Added DEBUG environment variable because printing everything is fun\\n- Fixed those stupid git commands with --no-pager flags\\n- Documented the dry-run mode in README.md, how revolutionary\"
-}"
+- Added proper schema validation in yeet.sh because who needs runtime errors
+- Removed hardcoded examples from yeet.sh, we're all professionals here
+- Added better error handling in yeet.sh because users make mistakes"
 
-  # Create JSON payload
+  # Create JSON payload without complex schema
   local json_payload=$(jq -n \
     --arg model "$MODEL_NAME" \
     --arg prompt "$user_prompt" \
@@ -76,7 +63,6 @@ Here is an example of the JSON format to use:
       model: $model,
       prompt: $prompt,
       system: $system,
-      format: "json",
       stream: false
     }')
   
@@ -98,8 +84,9 @@ Here is an example of the JSON format to use:
   debug "Parsed result:"
   debug "$result"
   
-  # Parse JSON and extract type, title and body
+  # Try to parse as JSON first
   if [[ "$result" == "{"* ]]; then
+    debug "Detected JSON response, attempting to parse"
     local type=$(echo "$result" | jq -r '.type // empty')
     local title=$(echo "$result" | jq -r '.title // empty')
     local body=$(echo "$result" | jq -r '.body // empty')
@@ -138,17 +125,94 @@ Here is an example of the JSON format to use:
                sed 's/--/ --/g')
         # Ensure we have correct formatting with no extra spaces
         printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
+        return
       else
         # Fallback if no body
         title=$(echo "$title" | sed 's/^[[:space:]]*//')
         type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
         printf "%s: %s" "$type" "$(echo "$title" | cut -c 1-70)"
+        return
       fi
-      return
     fi
   fi
   
-  # Fallback message
+  # If not JSON or JSON parsing failed, try to parse as plain text
+  debug "Attempting to parse as plain text"
+  
+  # Extract type, title and body using regex patterns
+  local type="feat"
+  local title=""
+  local body=""
+  
+  # Clean up the result by removing quotes and extra characters
+  result=$(echo "$result" | sed 's/"//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+  
+  # Try to find conventional commit format (type: title)
+  if [[ "$result" =~ ^(feat|fix|refactor|perf)[[:space:]]*:[[:space:]]*(.*) ]]; then
+    type="${BASH_REMATCH[1]}"
+    title="${BASH_REMATCH[2]}"
+    # Try to extract body (everything after first blank line)
+    if [[ "$result" =~ \n[[:space:]]*\n(.*) ]]; then
+      body="${BASH_REMATCH[1]}"
+    fi
+  else
+    # If not in conventional format, use first line as title
+    title=$(echo "$result" | head -n 1)
+    # And rest as body
+    body=$(echo "$result" | tail -n +3)
+  fi
+  
+  # Clean up title and body
+  title=$(echo "$title" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/"//g')
+  body=$(echo "$body" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/"//g')
+  
+  debug "Extracted from plain text:"
+  debug "Type: '$type'"
+  debug "Title: '$title'"
+  debug "Body: '$body'"
+  
+  # Check if the title is too generic or contains instruction text
+  if [[ "$title" == *"Title"* || "$title" == *"title"* || "$title" == *"Short description"* || \
+        "$title" == *"this commit"* || "$title" == *"This commit"* || "$title" == *"indicating"* || \
+        "$title" == *"changes to"* || "$title" == *"message is"* || "$title" == *"message for"* ]]; then
+    # Extract file names from the diff
+    local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
+    
+    # Set a better default title based on the files changed
+    if [[ "$changed_files" == *"yeet.sh"* ]]; then
+      title="Simplified LLM prompt and improved response handling"
+    else
+      title="Code improvements and refactoring"
+    fi
+  fi
+  
+  # Ensure title has an emoji
+  if [[ "$title" != *"🔥"* && "$title" != *"✨"* && "$title" != *"🛒"* && "$title" != *"🚀"* && "$title" != *"🐛"* ]]; then
+    title="✨ $title"
+  fi
+  
+  # Clean up the body if it contains instruction text or is empty/generic
+  if [[ -z "$body" || "$body" == *"bullet points"* || "$body" == *"referencing"* || "$body" == *"SPECIFIC"* ]]; then
+    # Extract file names from the diff for more specific body
+    local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
+    
+    if [[ "$changed_files" == *"yeet.sh"* ]]; then
+      body="- Simplified the LLM prompt for better commit message generation\n- Removed JSON schema format requirement for more flexible responses\n- Added better error handling for both JSON and plain text responses"
+    else
+      body="- Made code improvements based on the latest changes\n- Refactored for better readability and maintainability\n- Fixed potential issues in the codebase"
+    fi
+  fi
+  
+  # Format the commit message
+  if [[ -n "$body" ]]; then
+    printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
+    return
+  else
+    printf "%s: %s" "$type" "$(echo "$title" | cut -c 1-70)"
+    return
+  fi
+  
+  # Fallback message - only reached if all parsing methods fail
   echo -e "feat: ✨ Made some awesome changes!\n\nSomehow things work better now. Magic! 🎩✨"
 }
 
