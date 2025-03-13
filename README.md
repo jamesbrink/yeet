@@ -29,55 +29,59 @@ All with a single command: `./yeet.sh` - because typing more would be cruel and 
 
 ## Installation
 
-### The "I'm a serious developer" way (narrator: you're not):
+### The "I read documentation and take myself seriously" method:
 
-1. Clone this repository or download `yeet.sh`:
+1. Clone this repository like the Git wizard you pretend to be:
    ```bash
-   git clone https://github.com/yourusername/yeet.git
+   git clone https://github.com/jamesbrink/yeet.git
    cd yeet
    chmod +x yeet.sh
    ```
 
-2. Make sure Ollama is installed and running:
+2. Install Ollama because apparently you can't be bothered to write your own commit messages:
    ```bash
-   # Install Ollama following instructions at https://ollama.com/
-   # Start Ollama
+   # Follow instructions at https://ollama.com/ or just Google it, jeez
+   # Start Ollama (this app won't magically run itself)
    ollama serve
-   # Pull the default model (one time)
+   # Pull the default model (yes, we need to download a whole AI model for commit messages)
    ollama pull llama3.2:1b
    ```
 
-3. Optionally, create a symlink to use `yeet` from anywhere:
+3. Optionally, create a symlink so you can be lazy from ANY directory:
    ```bash
    sudo ln -s "$(pwd)/yeet.sh" /usr/local/bin/yeet
    ```
 
-### The "I just want this to work because I have deadlines" way:
+### The "I'm in a hurry and my boss is watching" express method:
 
-1. Save the script directly to your project:
+1. Just grab the damn script directly:
    ```bash
-   # From your project directory
-   curl -o yeet.sh https://raw.githubusercontent.com/yourusername/yeet/main/yeet.sh
-   chmod +x yeet.sh
+   # From ANY directory you want to use yeet in
+   curl -o yeet.sh https://raw.githubusercontent.com/jamesbrink/yeet/main/yeet.sh
+   chmod +x yeet.sh    # Don't forget this or you'll be back asking why it doesn't work
    ```
 
-2. Install dependencies if you don't have them:
+2. Make sure you have the required tools (we can't work miracles with nothing):
    ```bash
-   # Mac
+   # On your fancy MacBook Pro
    brew install ollama jq curl
-   # Ubuntu/Debian
+   
+   # On your company's ancient Ubuntu server
    sudo apt install jq curl
-   # Install Ollama from https://ollama.com/
+   # Get Ollama from https://ollama.com/ (we're not explaining how, figure it out)
    ```
 
-3. Run Ollama and pull the model:
+3. Start Ollama and get the model (yes, both steps are required, shocking):
    ```bash
+   # Start the Ollama server (the & runs it in the background so you can continue being unproductive)
    ollama serve &
+   
+   # Get the model (this might take a while on your potato internet)
    ollama pull llama3.2:1b
    ```
 
-4. That's it. Just run `./yeet.sh` whenever you want to commit. 
-   Who needs proper installation when you can just copy-paste like a Stack Overflow champion?
+4. That's literally it. Run `./yeet.sh` in any directory with a git repo, and watch the magic happen.
+   If this is too complicated for you, maybe stick to sending code changes as screenshots in Slack.
 
 ## Usage
 
