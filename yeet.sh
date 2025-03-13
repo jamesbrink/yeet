@@ -297,11 +297,6 @@ do_commit() {
     echo "$body" >> /tmp/yeet_commit_msg
   fi
   
-  # Debug output
-  if [[ $DRY_RUN -eq 1 ]]; then
-    echo "DEBUG: Commit message content:" >&2
-    cat /tmp/yeet_commit_msg >&2
-  fi
   
   # Commit with the generated message from file to preserve formatting
   git --no-pager commit -F /tmp/yeet_commit_msg
