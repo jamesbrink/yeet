@@ -124,13 +124,13 @@ feat: ✨ Improved JSON schema handling
                # Fix other spacing issues
                sed 's/--/ --/g')
         # Ensure we have correct formatting with no extra spaces
-        printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
+        echo -e "$type: $(echo "$title" | cut -c 1-50)\n\n$body"
         return
       else
         # Fallback if no body
         title=$(echo "$title" | sed 's/^[[:space:]]*//')
         type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        printf "%s: %s" "$type" "$(echo "$title" | cut -c 1-70)"
+        echo "$type: $(echo "$title" | cut -c 1-70)"
         return
       fi
     fi
@@ -174,13 +174,30 @@ feat: ✨ Improved JSON schema handling
   # Check if the title is too generic or contains instruction text
   if [[ "$title" == *"Title"* || "$title" == *"title"* || "$title" == *"Short description"* || \
         "$title" == *"this commit"* || "$title" == *"This commit"* || "$title" == *"indicating"* || \
-        "$title" == *"changes to"* || "$title" == *"message is"* || "$title" == *"message for"* ]]; then
+        "$title" == *"changes to"* || "$title" == *"message is"* || "$title" == *"message for"* || \
+        "$title" == *"Analyze"* || "$title" == *"analyze"* || "$title" == *"create a commit"* || \
+        -z "$title" || ${#title} -lt 10 ]]; then
+    
     # Extract file names from the diff
     local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
     
-    # Set a better default title based on the files changed
+    # Extract what was added/removed from the diff
+    local added_lines
+    added_lines=$(echo "$diff" | grep "^+" | grep -v "^+++" | sed 's/^+//' | tr '\n' ' ')
+    local removed_lines
+    removed_lines=$(echo "$diff" | grep "^-" | grep -v "^---" | sed 's/^-//' | tr '\n' ' ')
+    
+    # Set a better default title based on the files changed and content
     if [[ "$changed_files" == *"yeet.sh"* ]]; then
-      title="Simplified LLM prompt and improved response handling"
+      if [[ "$added_lines" == *"echo -e"* && "$removed_lines" == *"printf"* ]]; then
+        title="Fixed newline formatting in commit messages"
+      elif [[ "$added_lines" == *"prompt"* || "$removed_lines" == *"prompt"* ]]; then
+        title="Simplified LLM prompt for better commit messages"
+      elif [[ "$added_lines" == *"parse"* || "$added_lines" == *"JSON"* ]]; then
+        title="Improved JSON and text response parsing"
+      else
+        title="Enhanced commit message generation in yeet.sh"
+      fi
     else
       title="Code improvements and refactoring"
     fi
@@ -197,18 +214,23 @@ feat: ✨ Improved JSON schema handling
     local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
     
     if [[ "$changed_files" == *"yeet.sh"* ]]; then
-      body="- Simplified the LLM prompt for better commit message generation\n- Removed JSON schema format requirement for more flexible responses\n- Added better error handling for both JSON and plain text responses"
+      body="- Simplified the LLM prompt for better commit message generation
+- Removed JSON schema format requirement for more flexible responses
+- Added better error handling for both JSON and plain text responses"
     else
-      body="- Made code improvements based on the latest changes\n- Refactored for better readability and maintainability\n- Fixed potential issues in the codebase"
+      body="- Made code improvements based on the latest changes
+- Refactored for better readability and maintainability
+- Fixed potential issues in the codebase"
     fi
   fi
   
   # Format the commit message
   if [[ -n "$body" ]]; then
-    printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
+    # Use echo -e to properly interpret escape sequences
+    echo -e "$type: $(echo "$title" | cut -c 1-50)\n\n$body"
     return
   else
-    printf "%s: %s" "$type" "$(echo "$title" | cut -c 1-70)"
+    echo "$type: $(echo "$title" | cut -c 1-70)"
     return
   fi
   
