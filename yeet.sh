@@ -106,6 +106,7 @@ generate_commit_message() {
   
   # First, try to extract the JSON directly from the response field
   local json_result=""
+  local json_extraction_success=false
   
   # Check if the response field contains valid JSON
   if json_result=$(echo "$response" | jq -e '.response' 2>/dev/null); then
@@ -141,6 +142,7 @@ generate_commit_message() {
         type=$(echo "$json_result" | jq -r '.type' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
         title=$(echo "$json_result" | jq -r '.title')
         body=$(echo "$json_result" | jq -r '.body')
+        json_extraction_success=true
       else
         # The response might be a string containing JSON
         debug "Response field doesn't contain a properly formatted JSON object, trying to extract JSON from string"
@@ -159,6 +161,7 @@ generate_commit_message() {
             type=$(echo "$json_text" | jq -r '.type' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
             title=$(echo "$json_text" | jq -r '.title')
             body=$(echo "$json_text" | jq -r '.body')
+            json_extraction_success=true
           fi
         fi
       fi
@@ -200,22 +203,27 @@ generate_commit_message() {
   fi
   
   # If we couldn't extract a proper JSON object, try to extract the plain text response
-  debug "Couldn't extract proper JSON object, falling back to plain text extraction"
-  local result=$(echo "$response" | jq -r '.response // empty')
-  
-  debug "Extracted result text length: $(echo -n "$result" | wc -c) characters"
-  
-  # If no result or empty result, use a fallback message
-  if [[ -z "$result" ]]; then
-    debug "Empty response from API, using fallback message"
-    generate_fallback_message "$diff"
+  if [ "$json_extraction_success" = false ]; then
+    debug "Couldn't extract proper JSON object, falling back to plain text extraction"
+    local result=$(echo "$response" | jq -r '.response // empty')
+    
+    debug "Extracted result text length: $(echo -n "$result" | wc -c) characters"
+    
+    # If no result or empty result, use a fallback message
+    if [[ -z "$result" ]]; then
+      debug "Empty response from API, using fallback message"
+      generate_fallback_message "$diff"
+      return
+    fi
+    
+    # Fallback to conventional commit pattern parsing if not JSON
+    debug "Response is not valid JSON, falling back to text parsing"
+  else
+    # We already extracted the JSON successfully, so we can return
     return
   fi
   
-  # Fallback to conventional commit pattern parsing if not JSON
-  debug "Response is not valid JSON, falling back to text parsing"
-  
-  if [[ "$result" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)[[:space:]]*:[[:space:]]*(.*) ]]; then
+    if [[ "$result" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)[[:space:]]*:[[:space:]]*(.*) ]]; then
       local type="${BASH_REMATCH[1]}"
       local title="${BASH_REMATCH[2]}"
       
