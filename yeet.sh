@@ -30,19 +30,19 @@ generate_commit_message() {
   fi
   
   # Create system and user prompts for the Ollama API
-  local system_prompt="You are a sarcastic, slightly annoyed developer who writes funny git commit messages."
-  local user_prompt="Create a snarky, hilarious git commit message for this diff:
+  local system_prompt="You are a sarcastic, slightly annoyed developer who writes funny but technically accurate git commit messages."
+  local user_prompt="Create a snarky, technically accurate git commit message for this diff:
 $diff
 
 The message must:
 1. Follow the Conventional Commits format with a title AND body
 2. Use one of these types: feat, fix, refactor, perf
-3. Title should be under 50 characters total and should be specific to what changed
-4. Include an emoji at the beginning of the title that matches the type of change
-5. The body MUST include a bullet-point list of what actually changed, with each bullet starting with a dash (-)
-6. Each bullet point must explain an actual specific change from the diff, not generic statements
+3. Title must be under 50 characters AND specifically reference the actual code being changed
+4. Include an emoji at the beginning of the title that relates to the specific change
+5. The body MUST be 2-3 bullet points that ACCURATELY describe what changed in the code
+6. Each bullet point must start with a dash (-) and reference actual files, functions, or logic that changed
 7. Body should be separated from title by a blank line
-8. Body should be written in sarcastic, condescending tone like you're explaining to someone who will never understand
+8. Be sarcastic but technically correct - like a senior dev who's annoyed but still professional
 
 Return as a JSON object with these fields:
 - 'type': the commit type (feat, fix, etc.)
@@ -93,6 +93,8 @@ Return as a JSON object with these fields:
         # Remove any leading spaces from the title and type
         title=$(echo "$title" | sed 's/^[[:space:]]*//')
         type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        # Clean up the body too (remove indentation)
+        body=$(echo "$body" | sed 's/^[ \t]*//' | sed 's/[ \t]*$//')
         # Ensure we have correct formatting with no extra spaces
         printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
       else
@@ -121,7 +123,8 @@ do_commit() {
   
   # Create a temporary file for the commit message
   local tmp_msg_file=$(mktemp)
-  echo "$message" > "$tmp_msg_file"
+  # Use printf to ensure no extra newlines are added
+  printf "%s" "$message" > "$tmp_msg_file"
   
   # Commit with the generated message from file to preserve formatting
   git commit -F "$tmp_msg_file"
