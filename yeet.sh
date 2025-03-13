@@ -262,10 +262,10 @@ do_commit() {
   echo "DEBUG: Original json_msg:" > /tmp/yeet_debug
   echo "$json_msg" >> /tmp/yeet_debug
   
-  # Clean the JSON message to extract just the valid JSON part
-  local clean_json=$(echo "$json_msg" | grep -o '{.*}' | tail -1)
+  # Use the JSON message directly - it's already valid JSON
+  local clean_json="$json_msg"
   
-  echo "DEBUG: Extracted clean_json:" >> /tmp/yeet_debug
+  echo "DEBUG: Using json_msg directly:" >> /tmp/yeet_debug
   echo "$clean_json" >> /tmp/yeet_debug
   
   # Extract the parts from our JSON with fallbacks for missing fields
