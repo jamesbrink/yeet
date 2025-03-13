@@ -23,6 +23,8 @@ All with a single command: `./yeet.sh`
 
 ## Installation
 
+### The "I'm a serious developer" way:
+
 1. Clone this repository or download `yeet.sh`:
    ```bash
    git clone https://github.com/yourusername/yeet.git
@@ -43,6 +45,33 @@ All with a single command: `./yeet.sh`
    ```bash
    sudo ln -s "$(pwd)/yeet.sh" /usr/local/bin/yeet
    ```
+
+### The "I just want this to work" way:
+
+1. Save the script directly to your project:
+   ```bash
+   # From your project directory
+   curl -o yeet.sh https://raw.githubusercontent.com/yourusername/yeet/main/yeet.sh
+   chmod +x yeet.sh
+   ```
+
+2. Install dependencies if you don't have them:
+   ```bash
+   # Mac
+   brew install ollama jq curl
+   # Ubuntu/Debian
+   sudo apt install jq curl
+   # Install Ollama from https://ollama.com/
+   ```
+
+3. Run Ollama and pull the model:
+   ```bash
+   ollama serve &
+   ollama pull qwen:0.5b
+   ```
+
+4. That's it. Just run `./yeet.sh` whenever you want to commit. 
+   Who needs proper installation when you can just copy-paste?
 
 ## Usage
 
