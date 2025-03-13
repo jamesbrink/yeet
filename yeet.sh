@@ -704,6 +704,20 @@ if echo "$json_message" | jq -e '.type' >/dev/null 2>&1 &&
   type=$(echo "$json_message" | jq -r '.type // "feat"')
   subject=$(echo "$json_message" | jq -r '.subject // "✨ Changes"')
   body=$(echo "$json_message" | jq -r '.body // ""')
+  
+  # Validate that the type is one of the allowed conventional commit types
+  if ! echo "$type" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)$'; then
+    echo "⚠️ Model returned invalid type: '$type'. Fixing to 'feat'..." >&2
+    type="feat"
+  fi
+  
+  # Check if the subject incorrectly includes the type prefix already
+  if echo "$subject" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert):'; then
+    echo "⚠️ Subject includes type prefix. Extracting just the subject..." >&2
+    # Extract just the part after the type: prefix
+    clean_subject=$(echo "$subject" | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): *//')
+    subject="$clean_subject"
+  fi
 fi
 
 # Ensure subject has an emoji if it doesn't already have one
