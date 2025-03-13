@@ -304,7 +304,51 @@ do_commit() {
   # Clean up
   rm -f /tmp/yeet_commit_msg
   
-  echo "🚀 Yeeted your crappy changes to the repo! Hope they don't break everything!"
+  # Array of completion messages
+  local COMPLETION_MESSAGES=(
+    "🚀 Yeeted your crappy changes to the repo! Hope they don't break everything!"
+    "✅ Commit successful. Your questionable code is now immortalized forever."
+    "🎭 Your changes have been committed. You can pretend they're good now."
+    "📦 Packaging up your mediocrity for all to see!"
+    "🧨 Code bomb successfully planted in the repository."
+    "🧠 Against my better judgment, I've committed your changes."
+    "🤞 Fingers crossed this doesn't crash production (it probably will)."
+    "🏆 Congratulations! You've successfully lowered the code quality bar again!"
+    "🚮 Your digital garbage has been stored for posterity."
+    "🔥 Repository successfully set on fire with your changes."
+  )
+  
+  # Array of push success messages
+  local PUSH_SUCCESS_MESSAGES=(
+    "💩 Successfully dumped your trash into the remote! Your teammates will be THRILLED."
+    "🌍 Your code is now everyone's problem. Congrats on the promotion!"
+    "🚂 The pain train has left the station and is headed for your teammates."
+    "📢 Alert! Your questionable code is now public. Hide while you can."
+    "🎁 Surprise! Your teammates just got a mystery gift (it's bugs)."
+    "⚠️ Code pushed successfully. Prepare for the angry Slack messages."
+    "👻 Your team's future nightmares have been successfully deployed."
+    "🧟 Your undead code has been unleashed upon the world."
+    "🔔 Remote repo updated. Let the code reviews of shame begin!"
+    "📈 Your impact on technical debt is trending upward!"
+  )
+  
+  # Array of push failure messages
+  local PUSH_FAILURE_MESSAGES=(
+    "🤦‍♂️ Even Git couldn't handle your mess. Push your own damn code."
+    "❌ Push failed. Git has higher standards than I do, apparently."
+    "🙅 Remote rejected your garbage. It must have taste."
+    "🚫 Push failed. The repo has an immune system against bad code."
+    "⛔ Your code is so bad even the server refused to accept it."
+    "🔒 Remote repository has engaged defense protocols against your code."
+    "💥 Push crashed and burned. Maybe that's a sign?"
+    "🤢 Remote server took one look at your code and threw up."
+    "🧱 Your push hit a wall. The wall is called 'quality control'."
+    "⚰️ Your push died on the way to the remote. Perhaps for the best."
+  )
+  
+  # Select random completion message
+  local RANDOM_COMPLETION=$(($RANDOM % ${#COMPLETION_MESSAGES[@]}))
+  echo "${COMPLETION_MESSAGES[$RANDOM_COMPLETION]}"
   
   # Check if there's a remote configured for the current branch
   if git --no-pager remote -v | grep -q "^origin"; then
@@ -315,9 +359,13 @@ do_commit() {
     
     # Push to the remote (with no pager)
     if git --no-pager push origin "$current_branch"; then
-      echo "💩 Successfully dumped your trash into the remote! Your teammates will be THRILLED."
+      # Select random push success message
+      local RANDOM_PUSH_SUCCESS=$(($RANDOM % ${#PUSH_SUCCESS_MESSAGES[@]}))
+      echo "${PUSH_SUCCESS_MESSAGES[$RANDOM_PUSH_SUCCESS]}"
     else
-      echo "🤦‍♂️ Even Git couldn't handle your mess. Push your own damn code."
+      # Select random push failure message
+      local RANDOM_PUSH_FAILURE=$(($RANDOM % ${#PUSH_FAILURE_MESSAGES[@]}))
+      echo "${PUSH_FAILURE_MESSAGES[$RANDOM_PUSH_FAILURE]}"
     fi
   fi
 }
