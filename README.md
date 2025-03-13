@@ -8,8 +8,9 @@ A lazy developer's git tool for generating snarky, hilarious commit messages wit
 
 1. Stages all your changes (`git add .`)
 2. Uses Ollama to generate a funny, sarcastic, but technically accurate commit message based on your code changes
-3. Commits the changes with the generated message
-4. Automatically pushes to your remote (if one exists)
+3. Intelligently falls back to smart default messages when the AI is being generic
+4. Commits the changes with the generated message
+5. Automatically pushes to your remote (if one exists)
 
 All with a single command: `./yeet.sh`
 
@@ -125,6 +126,22 @@ You can modify the script to change:
 - The API endpoint (if you're running Ollama somewhere other than localhost)
 - The commit message style by editing the prompt
 - The timeout for API calls (default is 10 seconds)
+- The fallback message patterns in the script (it analyzes your changes to create relevant messages)
+
+## Features
+
+### Smart Commit Message Generation
+
+- Generates commit messages based on actual code changes
+- Analyzes added/removed lines to create relevant titles
+- Falls back to intelligent defaults when the AI generates generic messages
+- Properly formats commit messages with conventional commit types
+
+### Improved Error Handling
+
+- Handles both JSON and plain text responses from the LLM
+- Gracefully recovers from API errors or timeouts
+- Provides meaningful fallback messages based on file changes
 
 ## Examples
 
@@ -135,15 +152,36 @@ $ ./yeet.sh
 
 💬 Your commit message:
 
+feat: ✨ Fixed newline formatting in commit messages
+
+- Simplified the LLM prompt for better commit message generation
+- Removed JSON schema format requirement for more flexible responses
+- Added better error handling for both JSON and plain text responses
+
+🚀 Yeeted your changes to the repo!
+🌐 Remote detected! Pushing changes...
+🚀 Changes successfully pushed to remote!
+```
+
+```
+$ ./yeet.sh --dry-run
+🧙 Summoning the commit genie...
+🔍 DRY RUN MODE - Showing changes but not committing
+
+📝 Changes that would be committed:
+[diff output here]
+
+🔮 Generating a witty commit message...
+
+💬 Your commit message:
+
 feat: 🔧 Add user authentication to backend API
 
 - Added login/logout endpoints in auth.js that even a toddler could understand
 - Created JWT token generation in tokens.js that might actually be secure this time
 - Implemented password hashing in users.py because apparently "password123" isn't secure
 
-🚀 Yeeted your changes to the repo!
-🌐 Remote detected! Pushing changes...
-🚀 Changes successfully pushed to remote!
+🧪 Dry run complete - changes not committed
 ```
 
 ## License

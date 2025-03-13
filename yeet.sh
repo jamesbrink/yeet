@@ -6,7 +6,7 @@ set -o pipefail
 # Configuration
 MODEL_NAME="qwen:0.5b"
 OLLAMA_API="http://localhost:11434/api/generate"
-TIMEOUT=10
+TIMEOUT=30  # Increased timeout for larger diffs
 DEBUG=${DEBUG:-0}  # Set DEBUG=1 in environment to enable debug output
 
 # Debug logging function
@@ -25,6 +25,38 @@ stage_and_get_diff() {
   git --no-pager diff --staged
 }
 
+# Generate a generic fallback message based on changes
+generate_fallback_message() {
+  local diff="$1"
+  
+  # Extract file names from the diff
+  local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
+  debug "Changed files: $changed_files"
+  
+  # Extract what was added/removed from the diff
+  local added_lines=$(echo "$diff" | grep "^+" | grep -v "^+++" | head -10)
+  local removed_lines=$(echo "$diff" | grep "^-" | grep -v "^---" | head -10)
+  
+  # Default commit type and title
+  local type="feat"
+  local title="✨ Updated $(echo "$changed_files" | tr '\n' ' ')"
+  local body=""
+  
+  # Create a generic body based on the actual changes
+  body="- Made changes to $(echo "$changed_files" | wc -l) file(s)"
+  
+  if [[ -n "$added_lines" ]]; then
+    body="${body}\n- Added new code and functionality"
+  fi
+  
+  if [[ -n "$removed_lines" ]]; then
+    body="${body}\n- Removed or replaced outdated code"
+  fi
+  
+  # Return the formatted commit message
+  echo -e "$type: $title\n\n$body"
+}
+
 # Function to generate a commit message using Ollama
 generate_commit_message() {
   local diff="$1"
@@ -37,24 +69,11 @@ generate_commit_message() {
     exit 1
   fi
   
-  # Create system and user prompts for the Ollama API
-  local system_prompt="You are a sarcastic developer who writes technically accurate git commit messages based on the actual code changes in a diff."
-  local user_prompt="Generate a snarky but technically accurate git commit message for this diff:
-$diff
-
-Analyze the changes and create a commit message with:
-- Type: feat, fix, refactor, or perf
-- Title: Short description with emoji (✨=feature, 🐛=fix)
-- Body: 3 bullet points about specific files that changed
-
-Example format:
-feat: ✨ Improved JSON schema handling
-
-- Added proper schema validation in yeet.sh because who needs runtime errors
-- Removed hardcoded examples from yeet.sh, we're all professionals here
-- Added better error handling in yeet.sh because users make mistakes"
-
-  # Create JSON payload without complex schema
+  # Create a prompt using Ollama's structured output format
+  local system_prompt="You are a sarcastic developer who writes technically accurate git commit messages based on the actual code changes in a diff. You MUST return a valid JSON object with exactly these fields: type, title, and body."
+  local user_prompt="<diff>\n$diff\n</diff>\n\nBased on the diff above, generate a snarky but technically accurate git commit message. Return ONLY a valid JSON object with these fields: type (must be one of: feat, fix, docs, style, refactor, perf, test, chore, build, ci, revert), title (a short description), and body (a detailed explanation). Do not include any explanatory text, just return the JSON object."
+  
+  # Create JSON payload for Ollama API with structured output format
   local json_payload=$(jq -n \
     --arg model "$MODEL_NAME" \
     --arg prompt "$user_prompt" \
@@ -63,179 +82,208 @@ feat: ✨ Improved JSON schema handling
       model: $model,
       prompt: $prompt,
       system: $system,
-      stream: false
+      stream: false,
+      format: "json"
     }')
   
   # Debug the request
-  debug "Sending request to Ollama API with prompt:"
-  debug "$user_prompt"
+  debug "Sending request to Ollama API"
+  debug "System prompt: $system_prompt"
+  debug "User prompt length: $(echo -n "$user_prompt" | wc -c) characters"
 
   # Call the Ollama API and get response
   local response=$(timeout $TIMEOUT curl -s -X POST $OLLAMA_API \
     -H "Content-Type: application/json" \
     -d "$json_payload" 2>/dev/null)
     
-  # Extract the JSON response
-  local result=$(echo "$response" | jq -r '.response // empty')
-  
   # Debug the response
   debug "Raw API response:"
-  debug "$(echo "$response" | jq .)"
-  debug "Parsed result:"
-  debug "$result"
+  debug "$response"
+  debug "Raw API response length: $(echo -n "$response" | wc -c) characters"
   
-  # Try to parse as JSON first
-  if [[ "$result" == "{"* ]]; then
-    debug "Detected JSON response, attempting to parse"
-    local type=$(echo "$result" | jq -r '.type // empty')
-    local title=$(echo "$result" | jq -r '.title // empty')
-    local body=$(echo "$result" | jq -r '.body // empty')
+  # Try to extract the JSON response directly from the API response
+  debug "Attempting to extract JSON from API response"
+  
+  # First, try to extract the JSON directly from the response field
+  local json_result=""
+  
+  # Check if the response field contains valid JSON
+  if json_result=$(echo "$response" | jq -e '.response' 2>/dev/null); then
+    debug "Found JSON in response field"
     
-    # Debug the extracted components
-    debug "Extracted components:"
-    debug "Type: '$type'"
-    debug "Title: '$title'"
-    debug "Body: '$body'"
-    
-    if [[ -n "$type" && -n "$title" ]]; then
-      # Normalize type and trim spaces
-      type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-      case "$type" in
-        "feature") type="feat" ;;
-        "bug") type="fix" ;;
-      esac
+    # The response might be a JSON string that contains a JSON object
+    # Try to extract a JSON object from the string
+    local extracted_json=""
+    if extracted_json=$(echo "$json_result" | grep -o '{.*}' | head -n 1); then
+      debug "Found JSON object in string: $extracted_json"
       
-      # Ensure title has an emoji
-      if [[ "$title" != *"🔥"* && "$title" != *"✨"* && "$title" != *"🛒"* && "$title" != *"🚀"* && "$title" != *"🐛"* ]]; then
-        title="✨ $title"
+      # Try to parse the extracted JSON
+      if echo "$extracted_json" | jq -e '.' &>/dev/null; then
+        debug "Successfully parsed extracted JSON object"
+        json_result="$extracted_json"
+      fi
+    fi
+    
+    # Try to parse the JSON from the response field
+    if echo "$json_result" | jq -e '.' 2>/dev/null; then
+      debug "Successfully parsed JSON from response field"
+      
+      # Try to extract the commit message components
+      local type=""
+      local title=""
+      local body=""
+      
+      # First, check if the response is already a properly formatted JSON object
+      if echo "$json_result" | jq -e '.type' &>/dev/null && 
+         echo "$json_result" | jq -e '.title' &>/dev/null && 
+         echo "$json_result" | jq -e '.body' &>/dev/null; then
+        debug "Found properly formatted JSON object with all required fields"
+        type=$(echo "$json_result" | jq -r '.type' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        title=$(echo "$json_result" | jq -r '.title')
+        body=$(echo "$json_result" | jq -r '.body')
+      else
+        # The response might be a string containing JSON
+        debug "Response field doesn't contain a properly formatted JSON object, trying to extract JSON from string"
+        
+        # Try to extract JSON from the string by finding the first '{' and last '}'
+        local json_text=$(echo "$json_result" | tr -d '\n' | sed -E 's/.*\{(.*)}.*/{\1}/')
+        
+        if echo "$json_text" | jq -e '.' &>/dev/null; then
+          debug "Successfully extracted JSON from string"
+          
+          # Extract components from the extracted JSON
+          if echo "$json_text" | jq -e '.type' &>/dev/null && 
+             echo "$json_text" | jq -e '.title' &>/dev/null && 
+             echo "$json_text" | jq -e '.body' &>/dev/null; then
+            debug "Extracted JSON has all required fields"
+            type=$(echo "$json_text" | jq -r '.type' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            title=$(echo "$json_text" | jq -r '.title')
+            body=$(echo "$json_text" | jq -r '.body')
+          fi
+        fi
       fi
       
-      # Format conventional commit with body
-      if [[ -n "$body" ]]; then
-        # Remove any leading spaces from the title and type
-        title=$(echo "$title" | sed 's/^[[:space:]]*//')
-        type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        # Clean up the body to ensure proper spacing
-        body=$(echo "$body" | 
-               # First trim whitespace from start and end of each line
-               sed 's/^[ \t]*//' | sed 's/[ \t]*$//' | 
-               # Fix spacing around dashes and remove double spaces
-               sed 's/ -/-/g' | sed 's/  / /g' | 
-               # Fix other spacing issues
-               sed 's/--/ --/g')
-        # Ensure we have correct formatting with no extra spaces
-        echo -e "$type: $(echo "$title" | cut -c 1-50)\n\n$body"
-        return
-      else
-        # Fallback if no body
-        title=$(echo "$title" | sed 's/^[[:space:]]*//')
-        type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        echo "$type: $(echo "$title" | cut -c 1-70)"
-        return
+      # If we successfully extracted all components, format and return the commit message
+      if [[ -n "$type" && -n "$title" ]]; then
+        debug "Successfully extracted all required components from JSON"
+        
+        # Clean up the title
+        title=$(echo "$title" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        
+        # Ensure title has an emoji if it doesn't already have one
+        if [[ "$title" != *"🔥"* && "$title" != *"✨"* && "$title" != *"🛒"* && "$title" != *"🚀"* && 
+              "$title" != *"🐛"* && "$title" != *"🔧"* && "$title" != *"📚"* && "$title" != *"🎨"* && 
+              "$title" != *"♻️"* && "$title" != *"⚡️"* && "$title" != *"✅"* && "$title" != *"🔨"* ]]; then
+          if [[ "$type" == "feat" ]]; then
+            title="✨ $title"
+          elif [[ "$type" == "fix" ]]; then
+            title="🐛 $title"
+          elif [[ "$type" == "docs" ]]; then
+            title="📚 $title"
+          elif [[ "$type" == "perf" ]]; then
+            title="⚡️ $title"
+          else
+            title="✨ $title"
+          fi
+        fi
+        
+        # Format and return the commit message
+        if [[ -n "$body" ]]; then
+          echo -e "$type: $title\n\n$body"
+          return
+        else
+          echo "$type: $title"
+          return
+        fi
       fi
     fi
   fi
   
-  # If not JSON or JSON parsing failed, try to parse as plain text
-  debug "Attempting to parse as plain text"
+  # If we couldn't extract a proper JSON object, try to extract the plain text response
+  debug "Couldn't extract proper JSON object, falling back to plain text extraction"
+  local result=$(echo "$response" | jq -r '.response // empty')
   
-  # Extract type, title and body using regex patterns
-  local type="feat"
-  local title=""
-  local body=""
+  debug "Extracted result text length: $(echo -n "$result" | wc -c) characters"
   
-  # Clean up the result by removing quotes and extra characters
-  result=$(echo "$result" | sed 's/"//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-  
-  # Try to find conventional commit format (type: title)
-  if [[ "$result" =~ ^(feat|fix|refactor|perf)[[:space:]]*:[[:space:]]*(.*) ]]; then
-    type="${BASH_REMATCH[1]}"
-    title="${BASH_REMATCH[2]}"
-    # Try to extract body (everything after first blank line)
-    if [[ "$result" =~ \n[[:space:]]*\n(.*) ]]; then
-      body="${BASH_REMATCH[1]}"
-    fi
-  else
-    # If not in conventional format, use first line as title
-    title=$(echo "$result" | head -n 1)
-    # And rest as body
-    body=$(echo "$result" | tail -n +3)
-  fi
-  
-  # Clean up title and body
-  title=$(echo "$title" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/"//g')
-  body=$(echo "$body" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/"//g')
-  
-  debug "Extracted from plain text:"
-  debug "Type: '$type'"
-  debug "Title: '$title'"
-  debug "Body: '$body'"
-  
-  # Check if the title is too generic or contains instruction text
-  if [[ "$title" == *"Title"* || "$title" == *"title"* || "$title" == *"Short description"* || \
-        "$title" == *"this commit"* || "$title" == *"This commit"* || "$title" == *"indicating"* || \
-        "$title" == *"changes to"* || "$title" == *"message is"* || "$title" == *"message for"* || \
-        "$title" == *"Analyze"* || "$title" == *"analyze"* || "$title" == *"create a commit"* || \
-        -z "$title" || ${#title} -lt 10 ]]; then
-    
-    # Extract file names from the diff
-    local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
-    
-    # Extract what was added/removed from the diff
-    local added_lines
-    added_lines=$(echo "$diff" | grep "^+" | grep -v "^+++" | sed 's/^+//' | tr '\n' ' ')
-    local removed_lines
-    removed_lines=$(echo "$diff" | grep "^-" | grep -v "^---" | sed 's/^-//' | tr '\n' ' ')
-    
-    # Set a better default title based on the files changed and content
-    if [[ "$changed_files" == *"yeet.sh"* ]]; then
-      if [[ "$added_lines" == *"echo -e"* && "$removed_lines" == *"printf"* ]]; then
-        title="Fixed newline formatting in commit messages"
-      elif [[ "$added_lines" == *"prompt"* || "$removed_lines" == *"prompt"* ]]; then
-        title="Simplified LLM prompt for better commit messages"
-      elif [[ "$added_lines" == *"parse"* || "$added_lines" == *"JSON"* ]]; then
-        title="Improved JSON and text response parsing"
-      else
-        title="Enhanced commit message generation in yeet.sh"
-      fi
-    else
-      title="Code improvements and refactoring"
-    fi
-  fi
-  
-  # Ensure title has an emoji
-  if [[ "$title" != *"🔥"* && "$title" != *"✨"* && "$title" != *"🛒"* && "$title" != *"🚀"* && "$title" != *"🐛"* ]]; then
-    title="✨ $title"
-  fi
-  
-  # Clean up the body if it contains instruction text or is empty/generic
-  if [[ -z "$body" || "$body" == *"bullet points"* || "$body" == *"referencing"* || "$body" == *"SPECIFIC"* ]]; then
-    # Extract file names from the diff for more specific body
-    local changed_files=$(echo "$diff" | grep -E "^\+\+\+ b/" | sed 's/^+++ b\///' | sort -u)
-    
-    if [[ "$changed_files" == *"yeet.sh"* ]]; then
-      body="- Simplified the LLM prompt for better commit message generation
-- Removed JSON schema format requirement for more flexible responses
-- Added better error handling for both JSON and plain text responses"
-    else
-      body="- Made code improvements based on the latest changes
-- Refactored for better readability and maintainability
-- Fixed potential issues in the codebase"
-    fi
-  fi
-  
-  # Format the commit message
-  if [[ -n "$body" ]]; then
-    # Use echo -e to properly interpret escape sequences
-    echo -e "$type: $(echo "$title" | cut -c 1-50)\n\n$body"
-    return
-  else
-    echo "$type: $(echo "$title" | cut -c 1-70)"
+  # If no result or empty result, use a fallback message
+  if [[ -z "$result" ]]; then
+    debug "Empty response from API, using fallback message"
+    generate_fallback_message "$diff"
     return
   fi
   
-  # Fallback message - only reached if all parsing methods fail
-  echo -e "feat: ✨ Made some awesome changes!\n\nSomehow things work better now. Magic! 🎩✨"
+  # Fallback to conventional commit pattern parsing if not JSON
+  debug "Response is not valid JSON, falling back to text parsing"
+  
+  if [[ "$result" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)[[:space:]]*:[[:space:]]*(.*) ]]; then
+      local type="${BASH_REMATCH[1]}"
+      local title="${BASH_REMATCH[2]}"
+      
+      debug "Found conventional commit format. Type: $type, Title: $title"
+      
+      # Try to extract body (everything after first blank line)
+      if [[ "$result" =~ $type:[[:space:]]*$title$'\n'$'\n'(.*) ]]; then
+        local body="${BASH_REMATCH[1]}"
+        
+        debug "Body found: $body"
+        
+        # Clean up the title and body
+        title=$(echo "$title" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        body=$(echo "$body" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        
+        # Ensure title has an emoji if it doesn't already have one
+        if [[ "$title" != *"🔥"* && "$title" != *"✨"* && "$title" != *"🛒"* && "$title" != *"🚀"* && 
+              "$title" != *"🐛"* && "$title" != *"🔧"* && "$title" != *"📚"* && "$title" != *"🎨"* && 
+              "$title" != *"♻️"* && "$title" != *"⚡️"* && "$title" != *"✅"* && "$title" != *"🔨"* ]]; then
+          if [[ "$type" == "feat" ]]; then
+            title="✨ $title"
+          elif [[ "$type" == "fix" ]]; then
+            title="🐛 $title"
+          elif [[ "$type" == "docs" ]]; then
+            title="📚 $title"
+          elif [[ "$type" == "perf" ]]; then
+            title="⚡️ $title"
+          else
+            title="✨ $title"
+          fi
+        fi
+        
+        # Return the formatted commit message with body
+        echo -e "$type: $title\n\n$body"
+      else
+        # No body found, just return the type and title
+        debug "No body found, using title only"
+        echo "$type: $title"
+      fi
+    else
+      # If no conventional commit format found, use the first line as title with a default type
+      debug "No conventional commit format found, parsing as free text"
+      local first_line=$(echo "$result" | head -n 1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+      
+      # Default to feat type if no type found, and add emoji if needed
+      if [[ "$first_line" != *"🔥"* && "$first_line" != *"✨"* && "$first_line" != *"🛒"* && "$first_line" != *"🚀"* && 
+            "$first_line" != *"🐛"* && "$first_line" != *"🔧"* && "$first_line" != *"📚"* && "$first_line" != *"🎨"* && 
+            "$first_line" != *"♻️"* && "$first_line" != *"⚡️"* && "$first_line" != *"✅"* && "$first_line" != *"🔨"* ]]; then
+        first_line="✨ $first_line"
+      fi
+      
+      debug "First line (title): $first_line"
+      
+      # Try to extract body from rest of text (after first blank line)
+      if [[ $(echo "$result" | wc -l) -gt 2 ]]; then
+        local body=$(echo "$result" | tail -n +3)
+        if [[ -n "$body" ]]; then
+          debug "Body found from free text"
+          echo -e "feat: $first_line\n\n$body"
+        else
+          debug "No body found in free text"
+          echo "feat: $first_line"
+        fi
+      else
+        debug "Single line result, no body"
+        echo "feat: $first_line"
+      fi
+    fi
 }
 
 # Create commit with the generated message and push if remote exists
