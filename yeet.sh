@@ -266,6 +266,11 @@ do_commit() {
   local subject=$(echo "$clean_json" | jq -r '.subject // "✨ Changes"')
   local body=$(echo "$clean_json" | jq -r '.body // ""')
   
+  # Validate that we have at least a subject
+  if [[ -z "$subject" || "$subject" == "null" ]]; then
+    subject="✨ Changes"
+  fi
+  
   # Format the commit message
   # Truncate excessively long subjects
   if [[ ${#subject} -gt 100 ]]; then
@@ -275,21 +280,24 @@ do_commit() {
   # Clean up body (remove explicit newlines if necessary)
   body=$(echo "$body" | sed 's/\\n/\n/g')
   
-  # Build the final message
-  local commit_msg="$type: $subject"
+  # Build the final message in a format git expects (first line, blank line, then body)
+  echo "$type: $subject" > /tmp/yeet_commit_msg
   if [[ -n "$body" ]]; then
-    commit_msg="$commit_msg\n\n$body"
+    echo "" >> /tmp/yeet_commit_msg
+    echo "$body" >> /tmp/yeet_commit_msg
   fi
   
-  # Create a temporary file for the commit message
-  local tmp_msg_file=$(mktemp)
-  printf "%b" "$commit_msg" > "$tmp_msg_file"
+  # Debug output
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "DEBUG: Commit message content:" >&2
+    cat /tmp/yeet_commit_msg >&2
+  fi
   
   # Commit with the generated message from file to preserve formatting
-  git --no-pager commit -F "$tmp_msg_file"
+  git --no-pager commit -F /tmp/yeet_commit_msg
   
   # Clean up
-  rm -f "$tmp_msg_file"
+  rm -f /tmp/yeet_commit_msg
   
   echo "🚀 Yeeted your crappy changes to the repo! Hope they don't break everything!"
   
