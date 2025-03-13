@@ -283,7 +283,7 @@ do_commit() {
   
   # Create a temporary file for the commit message
   local tmp_msg_file=$(mktemp)
-  printf "%s" "$commit_msg" > "$tmp_msg_file"
+  printf "%b" "$commit_msg" > "$tmp_msg_file"
   
   # Commit with the generated message from file to preserve formatting
   git --no-pager commit -F "$tmp_msg_file"
