@@ -68,6 +68,12 @@ If you want to see what commit message would be generated without actually commi
 ./yeet.sh -d
 ```
 
+Dry run mode:
+1. Shows all changes that would be committed (both staged and unstaged)
+2. Generates a commit message based on those changes
+3. Displays the commit message that would be used
+4. Does NOT stage or commit any changes
+
 ## Customization
 
 You can modify the script to change:
