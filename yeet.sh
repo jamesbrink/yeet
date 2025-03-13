@@ -60,16 +60,64 @@ generate_fallback_message() {
   local file_count=$(echo "$changed_files" | wc -l | tr -d ' ')
   local file_list=$(echo "$changed_files" | sed 's/^/- /' | head -10)
   
-  # Create a snarky body 
-  local body_text="You somehow managed to screw up $file_count file(s):\n$file_list"
+  # Array of snarky fallback roasts
+  local FALLBACK_ROASTS=(
+    "You somehow managed to screw up $file_count file(s) at once. That's almost impressive."
+    "Congratulations on ruining $file_count perfectly good file(s). Your dedication to chaos is remarkable."
+    "I see you're going for the 'quantity over quality' approach with these $file_count file changes."
+    "$file_count file(s) modified and not a single improvement to be found. Remarkable."
+    "Were you actively trying to make this codebase worse, or do these $file_count changes just come naturally?"
+    "$file_count file(s) touched by your keyboard, $file_count file(s) that will need to be fixed later."
+    "I've seen monkeys type Shakespeare with more coherence than your changes to these $file_count file(s)."
+    "If these $file_count changes were a code smell, they'd be a full-on hazardous waste zone."
+    "These $file_count file changes look like what happens when you code during a fever dream."
+    "Did you just copy-paste from Stack Overflow into $file_count random files and call it a day?"
+  )
+  
+  # Select a random fallback roast
+  local RANDOM_FALLBACK_ROAST=$(($RANDOM % ${#FALLBACK_ROASTS[@]}))
+  local body_text="${FALLBACK_ROASTS[$RANDOM_FALLBACK_ROAST]}\n\nFiles affected:\n$file_list"
   
   # If there are more files, indicate that
   if [ "$file_count" -gt 10 ]; then
-    body_text="${body_text}\n- ... and $(($file_count - 10)) more stupid changes. Jesus Christ."
+    # Array of snarky "more files" messages
+    local MORE_FILES_MESSAGES=(
+      "- ... and $(($file_count - 10)) more stupid changes. Jesus Christ."
+      "- ... and $(($file_count - 10)) more files you've victimized. The carnage never ends."
+      "- ... and $(($file_count - 10)) more changes I'm too disgusted to list."
+      "- ... plus $(($file_count - 10)) additional crimes against programming. Call the code police."
+      "- ... and $(($file_count - 10)) more. Do you ever get tired of breaking things?"
+      "- ... I'm hiding the other $(($file_count - 10)) files to protect your feelings."
+      "- ... omitting $(($file_count - 10)) more because there's a character limit on tragedy."
+      "- ... $(($file_count - 10)) more files that wish they'd never met you."
+      "- ... $(($file_count - 10)) more casualties of your coding spree."
+      "- ... plus $(($file_count - 10)) more. Have you considered a career change?"
+    )
+    
+    # Select a random "more files" message
+    local RANDOM_MORE_FILES=$(($RANDOM % ${#MORE_FILES_MESSAGES[@]}))
+    body_text="${body_text}\n${MORE_FILES_MESSAGES[$RANDOM_MORE_FILES]}"
   fi
   
+  # Array of fallback notice messages
+  local FALLBACK_NOTICE_MESSAGES=(
+    "(This is a fallback message because Ollama got fed up with your crappy code)"
+    "(This is a simpler message because your code was too terrible for the AI to process)"
+    "(Ollama gave up trying to understand your code, so here's a basic message instead)"
+    "(The AI refused to analyze your code further, citing mental health concerns)"
+    "(This is a fallback message because even AI has standards it won't stoop below)"
+    "(Fallback message activated: AI went on strike after seeing your code)"
+    "(The LLM declined to provide a more detailed analysis out of self-preservation)"
+    "(Simplified message provided because your code broke the AI's will to continue)"
+    "(Backup message system engaged: primary AI has left the chat after seeing your code)"
+    "(This is what you get when your code is too horrific for advanced AI to process)"
+  )
+  
+  # Select a random fallback notice
+  local RANDOM_FALLBACK_NOTICE=$(($RANDOM % ${#FALLBACK_NOTICE_MESSAGES[@]}))
+  
   # Add notice that this is a fallback message
-  body_text="${body_text}\n\n(This is a fallback message because Ollama got fed up with your crappy code)"
+  body_text="${body_text}\n\n${FALLBACK_NOTICE_MESSAGES[$RANDOM_FALLBACK_NOTICE]}"
   
   # Create proper JSON object with valid escaping using jq
   local json_response=$(jq -n \
