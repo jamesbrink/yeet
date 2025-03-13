@@ -182,7 +182,7 @@ You are a BRUTALLY RUDE but TECHNICALLY ACCURATE commit message generator. I'll 
 
 ANALYSIS REQUIREMENTS:
 1. FIRST STEP: Carefully examine the diff stats at the beginning to identify ALL modified files
-2. SECOND STEP: Analyze ALL added/removed/modified lines to understand the substance of the changes
+2. SECOND STEP: If the diff contains full content, analyze ALL added/removed/modified lines to understand the substance of the changes. If you only receive a diff summary (with just file names and stats), focus on the file types and names to determine the purpose of the changes
 3. THIRD STEP: Identify the developer's intent (what problem they're solving) based on code context
 4. FOURTH STEP: Determine the appropriate conventional commit type based on the changes
 
@@ -193,6 +193,7 @@ VERY IMPORTANT:
 - The body text must SPECIFICALLY mock the actual code changes, not generic insults
 - DO NOT just reference "the changes" vaguely - be specific about what was actually modified
 - Mention SPECIFIC file names, function names, or code patterns that were changed
+- If you only receive a summary diff (without full content), focus your mockery on the files changed and the general purpose inferred from file types and names
 
 IMPORTANT: Analyze what ACTUALLY changed in the diff (files/content) and refer ONLY to those specific changes in your message. Accuracy is the highest priority.
 EOF
@@ -649,9 +650,71 @@ if [[ $DRY_RUN -eq 1 ]]; then
   
   # Get the diff for message generation (with enhanced context)
   diff=$(git --no-pager diff HEAD --stat --unified=3 --function-context --color=never)
+  
+  # Determine if we should use the full diff or a summarized version based on size
+  diff_size=${#diff}
+  if [ $diff_size -gt 15000 ]; then
+    echo "⚠️ Large diff detected ($diff_size chars). Using summarized version for the LLM..." >&2
+    
+    # Create a summary of file types changed for better context
+    file_types=$(git --no-pager diff --name-only | grep -o '\.[^/.]*$' | sort | uniq -c | sort -nr)
+    
+    # Get top 5 largest changes
+    top_changes=$(git --no-pager diff --stat | sort -nr -k3 | head -5)
+    
+    # Create a summarized version with stats and enhanced context for large diffs
+    file_list=$(git --no-pager diff --name-only)
+    summary=$(git --no-pager diff --stat --color=never)
+    
+    # Combine the information into a more helpful summarized diff
+    diff="=== DIFF SUMMARY (Large diff detected) ===\n"
+    diff+="$summary\n\n"
+    diff+="=== FILE TYPES CHANGED ===\n$file_types\n\n"
+    diff+="=== TOP 5 LARGEST CHANGES ===\n$top_changes\n\n"
+    diff+="=== ALL CHANGED FILES ===\n$file_list"
+    
+    # Log a summary of what we're sending
+    files_changed=$(echo "$summary" | grep -c "files\? changed")
+    insertions=$(echo "$summary" | grep -o "[0-9]* insertion" | awk '{s+=$1} END {print s}')
+    deletions=$(echo "$summary" | grep -o "[0-9]* deletion" | awk '{s+=$1} END {print s}')
+    echo "📊 Summarized $files_changed files with $insertions insertions and $deletions deletions" >&2
+  else
+    echo "📄 Using full diff ($diff_size chars) for detailed commit message" >&2
+  fi
 else
-  # Normal mode - stage all changes
+  # Normal mode - stage all changes and get diff
   diff=$(stage_and_get_diff)
+  
+  # Determine if we should use the full diff or a summarized version based on size
+  diff_size=${#diff}
+  if [ $diff_size -gt 15000 ]; then
+    echo "⚠️ Large diff detected ($diff_size chars). Using summarized version for the LLM..." >&2
+    
+    # Create a summary of file types changed for better context
+    file_types=$(git --no-pager diff --staged --name-only | grep -o '\.[^/.]*$' | sort | uniq -c | sort -nr)
+    
+    # Get top 5 largest changes
+    top_changes=$(git --no-pager diff --staged --stat | sort -nr -k3 | head -5)
+    
+    # Create a summarized version with stats and enhanced context for large diffs
+    file_list=$(git --no-pager diff --staged --name-only)
+    summary=$(git --no-pager diff --staged --stat --color=never)
+    
+    # Combine the information into a more helpful summarized diff
+    diff="=== DIFF SUMMARY (Large diff detected) ===\n"
+    diff+="$summary\n\n"
+    diff+="=== FILE TYPES CHANGED ===\n$file_types\n\n"
+    diff+="=== TOP 5 LARGEST CHANGES ===\n$top_changes\n\n"
+    diff+="=== ALL CHANGED FILES ===\n$file_list"
+    
+    # Log a summary of what we're sending
+    files_changed=$(echo "$summary" | grep -c "files\? changed")
+    insertions=$(echo "$summary" | grep -o "[0-9]* insertion" | awk '{s+=$1} END {print s}')
+    deletions=$(echo "$summary" | grep -o "[0-9]* deletion" | awk '{s+=$1} END {print s}')
+    echo "📊 Summarized $files_changed files with $insertions insertions and $deletions deletions" >&2
+  else
+    echo "📄 Using full diff ($diff_size chars) for detailed commit message" >&2
+  fi
 fi
 
 if [ -z "$diff" ]; then
