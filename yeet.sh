@@ -454,8 +454,38 @@ check_ollama
 # Check if the selected model is available
 check_model "$MODEL_NAME"
 
+# Array of snarky startup messages
+STARTUP_MESSAGES=(
+  "🧙 Summoning the commit demon to judge your pathetic code..."
+  "🔮 Channeling the spirit of your disappointed tech lead..."
+  "💩 Preparing to evaluate your questionable coding choices..."
+  "⚡️ Firing up the code-roasting machine..."
+  "🧠 Applying basic programming standards your code will fail to meet..."
+  "🤦‍♂️ Loading disappointment module to review your changes..."
+  "🔍 Initializing advanced garbage detection algorithms..."
+  "🧪 Analyzing your code for signs of competence (unlikely)..."
+  "🚨 Spinning up the emergency code review system..."
+  "🤖 Activating the brutal honesty protocol for your code..."
+)
+
+# Array of snarky "no changes" messages
+NO_CHANGES_MESSAGES=(
+  "🤬 Are you kidding me? No changes detected. What the hell am I supposed to work with?"
+  "🙄 No changes? Did you just waste my time for fun?"
+  "💤 Nothing to commit. Try actually WRITING some code first, genius."
+  "🤦‍♂️ Zero changes detected. Was opening your editor too much work today?"
+  "😒 No changes found. Were you just practicing typing 'git' commands?"
+  "🦗 *crickets* That's the sound of your empty commit."
+  "👻 The ghost of your productivity called - it's dead."
+  "🧐 I've analyzed your changes carefully and found... absolutely nothing."
+  "🔎 Searching for your changes... ERROR: CHANGES_NOT_FOUND"
+  "🚫 No changes? Maybe try the revolutionary technique called 'writing code'?"
+)
+
 # Main execution
-echo "🧙 Summoning the commit demon to judge your pathetic code..."
+# Select a random startup message
+RANDOM_STARTUP=$(($RANDOM % ${#STARTUP_MESSAGES[@]}))
+echo "${STARTUP_MESSAGES[$RANDOM_STARTUP]}"
 
 # Handle dry run mode
 if [[ $DRY_RUN -eq 1 ]]; then
@@ -473,7 +503,9 @@ else
 fi
 
 if [ -z "$diff" ]; then
-  echo "🤬 Are you kidding me? No changes detected. What the hell am I supposed to work with?"
+  # Select a random "no changes" message
+  RANDOM_NO_CHANGES=$(($RANDOM % ${#NO_CHANGES_MESSAGES[@]}))
+  echo "${NO_CHANGES_MESSAGES[$RANDOM_NO_CHANGES]}"
   exit 0
 fi
 
