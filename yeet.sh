@@ -21,8 +21,13 @@ stage_and_get_diff() {
   # Add all changes
   git add .
   
-  # Get the staged diff (with compact summary and unified format)
-  git --no-pager diff --staged --compact-summary --unified=1
+  # Get the staged diff with more context and detail:
+  # --stat: Add a diffstat summary of changes
+  # --unified=3: Show 3 lines of context (more context helps AI understand)
+  # --function-context: Include the entire function when a part changes
+  # --color=never: Ensure no color codes that could confuse the AI
+  # --patch: Ensure we get the actual content changes
+  git --no-pager diff --staged --stat --unified=3 --function-context --color=never
 }
 
 # Generate a generic fallback message based on changes
@@ -631,8 +636,8 @@ if [[ $DRY_RUN -eq 1 ]]; then
   echo -e "\n📝 This is the crap you want to commit:"
   git --no-pager diff --color HEAD | cat
   
-  # Get the diff for message generation
-  diff=$(git --no-pager diff HEAD --compact-summary --unified=1)
+  # Get the diff for message generation (with enhanced context)
+  diff=$(git --no-pager diff HEAD --stat --unified=3 --function-context --color=never)
 else
   # Normal mode - stage all changes
   diff=$(stage_and_get_diff)
