@@ -111,7 +111,7 @@ Return as a JSON object with these fields:
   echo -e "feat: ✨ Made some awesome changes!\n\nSomehow things work better now. Magic! 🎩✨"
 }
 
-# Create commit with the generated message
+# Create commit with the generated message and push if remote exists
 do_commit() {
   local message="$1"
   
@@ -133,6 +133,21 @@ do_commit() {
   rm -f "$tmp_msg_file"
   
   echo "🚀 Yeeted your changes to the repo!"
+  
+  # Check if there's a remote configured for the current branch
+  if git remote -v | grep -q "^origin"; then
+    echo "🌐 Remote detected! Pushing changes..."
+    
+    # Get current branch name
+    local current_branch=$(git rev-parse --abbrev-ref HEAD)
+    
+    # Push to the remote
+    if git push origin "$current_branch"; then
+      echo "🚀 Changes successfully pushed to remote!"
+    else
+      echo "❌ Failed to push changes. You'll need to push manually."
+    fi
+  fi
 }
 
 # Main execution - the full yeet process
