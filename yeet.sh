@@ -90,14 +90,16 @@ Return as a JSON object with these fields:
       
       # Format conventional commit with body
       if [[ -n "$body" ]]; then
-        # Remove any leading spaces from the title
+        # Remove any leading spaces from the title and type
         title=$(echo "$title" | sed 's/^[[:space:]]*//')
-        # Ensure we have correct formatting, avoiding double spaces between type and title
+        type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        # Ensure we have correct formatting with no extra spaces
         printf "%s: %s\n\n%s" "$type" "$(echo "$title" | cut -c 1-50)" "$body"
       else
         # Fallback if no body
         title=$(echo "$title" | sed 's/^[[:space:]]*//')
-        echo "$type: $title" | cut -c 1-70
+        type=$(echo "$type" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        printf "%s: %s" "$type" "$(echo "$title" | cut -c 1-70)"
       fi
       return
     fi
@@ -117,8 +119,15 @@ do_commit() {
     exit 1
   fi
   
-  # Commit with the generated message
-  git commit -m "$message"
+  # Create a temporary file for the commit message
+  local tmp_msg_file=$(mktemp)
+  echo "$message" > "$tmp_msg_file"
+  
+  # Commit with the generated message from file to preserve formatting
+  git commit -F "$tmp_msg_file"
+  
+  # Clean up
+  rm -f "$tmp_msg_file"
   
   echo "🚀 Yeeted your changes to the repo!"
 }
