@@ -350,9 +350,25 @@ do_commit() {
   local RANDOM_COMPLETION=$(($RANDOM % ${#COMPLETION_MESSAGES[@]}))
   echo "${COMPLETION_MESSAGES[$RANDOM_COMPLETION]}"
   
+  # Array of remote detection messages
+  local REMOTE_DETECT_MESSAGES=(
+    "🌐 Remote detected! Inflicting your garbage on everyone else..."
+    "🌎 Remote repo found! Time to spread your mistakes globally..."
+    "🔗 Remote connection detected! Preparing to ruin everyone's day..."
+    "📡 Remote repo in range! Targeting it with your questionable code..."
+    "🚀 Remote found! Launching your code into shared orbit..."
+    "🧨 Remote repository detected! Ready to drop your code bomb..."
+    "⚠️ DANGER: Remote repository detected! Collateral damage imminent..."
+    "🌪️ Remote found! Your code tornado is about to go international..."
+    "📲 Discovered remote repo - preparing viral infection of your code..."
+    "🔄 Remote sync available! Creating a backup of your disaster..."
+  )
+  
   # Check if there's a remote configured for the current branch
   if git --no-pager remote -v | grep -q "^origin"; then
-    echo "🌐 Remote detected! Inflicting your garbage on everyone else..."
+    # Select random remote detection message
+    local RANDOM_REMOTE_DETECT=$(($RANDOM % ${#REMOTE_DETECT_MESSAGES[@]}))
+    echo "${REMOTE_DETECT_MESSAGES[$RANDOM_REMOTE_DETECT]}"
     
     # Get current branch name
     local current_branch=$(git --no-pager rev-parse --abbrev-ref HEAD)
@@ -535,9 +551,25 @@ NO_CHANGES_MESSAGES=(
 RANDOM_STARTUP=$(($RANDOM % ${#STARTUP_MESSAGES[@]}))
 echo "${STARTUP_MESSAGES[$RANDOM_STARTUP]}"
 
+# Array of dry run mode announcement messages
+DRY_RUN_ANNOUNCE_MESSAGES=(
+  "🔍 DRY RUN MODE - I'll show you how bad your changes are without committing them"
+  "🧪 DRY RUN MODE - Let's see how terrible your code is before inflicting it on the repo"
+  "👁️ DRY RUN MODE - Previewing the carnage you're about to unleash"
+  "🚧 DRY RUN MODE - Testing the disaster before it becomes permanent"
+  "🛑 DRY RUN MODE - Showing you the horror without making it official"
+  "📝 DRY RUN MODE - Your code is on trial, but won't be sentenced... yet"
+  "🕵️ DRY RUN MODE - Investigating your changes before they become a crime"
+  "🔮 DRY RUN MODE - Foreseeing the consequences of your poor decisions"
+  "⚠️ DRY RUN MODE - Showing you what you COULD commit (but probably shouldn't)"
+  "💭 DRY RUN MODE - Imagining a world where your code gets committed"
+)
+
 # Handle dry run mode
 if [[ $DRY_RUN -eq 1 ]]; then
-  echo "🔍 DRY RUN MODE - I'll show you how bad your changes are without committing them"
+  # Select random dry run announcement
+  RANDOM_DRY_RUN_ANNOUNCE=$(($RANDOM % ${#DRY_RUN_ANNOUNCE_MESSAGES[@]}))
+  echo "${DRY_RUN_ANNOUNCE_MESSAGES[$RANDOM_DRY_RUN_ANNOUNCE]}"
   
   # Show all changes
   echo -e "\n📝 This is the crap you want to commit:"
@@ -557,7 +589,23 @@ if [ -z "$diff" ]; then
   exit 0
 fi
 
-echo "🔮 Generating an insult for your crappy code..."
+# Array of insult generation messages
+INSULT_GEN_MESSAGES=(
+  "🔮 Generating an insult for your crappy code..."
+  "🤔 Thinking of creative ways to mock your code..."
+  "💩 Analyzing your code to find the perfect insult..."
+  "🧠 Processing your changes to formulate maximum mockery..."
+  "⚙️ Calibrating the insult-o-meter for your code..."
+  "📊 Calculating the disappointment level of your changes..."
+  "🔍 Examining your code with my judgment goggles..."
+  "⏳ Summoning the perfect insult for this abomination..."
+  "🧙 Casting a spell to convert your code into sarcasm..."
+  "🤖 Running the embarrassment algorithm on your changes..."
+)
+
+# Select random insult generation message
+RANDOM_INSULT_GEN=$(($RANDOM % ${#INSULT_GEN_MESSAGES[@]}))
+echo "${INSULT_GEN_MESSAGES[$RANDOM_INSULT_GEN]}"
 
 # Use fallback message generation directly to ensure we get something reasonable
 fallback_json=$(generate_fallback_message "$diff")
@@ -606,9 +654,25 @@ if [[ -n "$body" ]]; then
 fi
 echo -e "\n"
 
+# Array of dry run messages
+DRY_RUN_MESSAGES=(
+  "🧪 Dry run complete - saved your ass from committing that garbage. You're welcome."
+  "🛑 Stopped just in time - your code lives to be judged another day."
+  "👀 Preview mode complete. I've seen enough horrors for one day."
+  "📝 Dry run finished. Consider this a rehearsal for disappointment."
+  "🚧 Test drive complete. Your code failed the emissions test."
+  "🔮 Fortune teller says: If you commit this code, bad things will happen."
+  "💭 Just imagining how bad this commit would be. Terrifying."
+  "⚠️ Simulated commit complete. The simulation indicates: disaster."
+  "🚫 Dry run finished. That was painful enough without actually committing."
+  "🧠 I've seen what you want to commit, and I'm concerned for your mental health."
+)
+
 # Auto-commit unless in dry run mode
 if [[ $DRY_RUN -eq 0 ]]; then
   do_commit "$json_message"
 else
-  echo "🧪 Dry run complete - saved your ass from committing that garbage. You're welcome."
+  # Select a random dry run message
+  RANDOM_DRY_RUN=$(($RANDOM % ${#DRY_RUN_MESSAGES[@]}))
+  echo "${DRY_RUN_MESSAGES[$RANDOM_DRY_RUN]}"
 fi
