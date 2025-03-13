@@ -49,6 +49,8 @@ Return as a JSON object with these fields:
 - 'title': the commit title/summary (without the type prefix)
 - 'body': your snarky bullet-point explanation of what changed"
 
+echo $user_prompt
+
   # Create JSON payload
   local json_payload=$(jq -n \
     --arg model "$MODEL_NAME" \
